@@ -12,7 +12,7 @@
             align-items: center;
             justify-content: flex-start;
             margin: 0;
-            padding: 5px;
+            padding: 0;
             background-color: #f4f4f4;
             height: 100vh;
             overflow: hidden;
@@ -21,7 +21,7 @@
         h1 {
             font-size: 1.5em;
             color: #333;
-            margin-bottom: 5px;
+            margin: 5px 0;
         }
 
         .feedback {
@@ -35,8 +35,8 @@
             display: grid;
             grid-template-columns: repeat(6, 1fr);
             grid-gap: 2px;
-            width: 90vw;
-            max-width: 400px;
+            width: 95%;
+            max-width: 360px;
         }
 
         .sequence {
@@ -48,26 +48,28 @@
         }
 
         .test-tube {
-            position: relative;
-            width: 40px;
-            height: 80px;
+            width: 35px;
+            height: 70px;
             background: linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.3));
-            border-radius: 10px 10px 5px 5px;
+            border-radius: 5px 5px 3px 3px;
             border: 1px solid rgba(0, 0, 0, 0.2);
-            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.3), 0 3px 10px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
+            box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.3), 0 2px 5px rgba(0, 0, 0, 0.2);
             display: flex;
             align-items: flex-end;
             justify-content: center;
             cursor: pointer;
-            user-select: none;
+            margin: 2px;
+        }
+
+        .test-tube.selected {
+            border: 2px solid #007bff;
         }
 
         .test-tube .liquid {
             width: 90%;
             height: 60%;
             background: inherit;
-            border-radius: 0 0 5px 5px;
+            border-radius: 0 0 3px 3px;
             position: absolute;
             bottom: 0;
             box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.3);
@@ -84,19 +86,14 @@
         .black .liquid { background: linear-gradient(to top, #666666, #000000); }
 
         .drop-zone {
-            width: 40px;
-            height: 80px;
+            width: 35px;
+            height: 70px;
             margin: 1px;
             border: 1px dashed #888;
-            border-radius: 10px 10px 5px 5px;
+            border-radius: 5px 5px 3px 3px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.2s;
-        }
-
-        .drop-zone.over {
-            background: rgba(0, 0, 0, 0.1);
         }
 
         .fixed-tube-bar {
@@ -161,7 +158,7 @@
         let currentLevel = 0;
         let targetSequence = [];
         let playerSequence = [];
-        let guessCount = 0;
+        let selectedColor = null;
 
         const sortingArea = document.getElementById('sorting-area');
         const availableTubesContainer = document.getElementById('available-tubes');
@@ -173,7 +170,6 @@
             const levelData = levels[level];
             targetSequence = generateValidSequence(levelData.colors, levelData.numBottles);
             playerSequence = Array(levelData.numBottles).fill(null);
-            guessCount = 0;
             renderSortingArea();
             renderAvailableTubes(levelData.colors);
             feedbackMessage.textContent = '';
@@ -195,15 +191,13 @@
             playerSequence.forEach((color, index) => {
                 const dropZone = document.createElement('div');
                 dropZone.classList.add('drop-zone');
-                dropZone.addEventListener('dragover', handleDragOver);
-                dropZone.addEventListener('drop', (e) => handleDrop(e, index));
-                dropZone.addEventListener('touchend', (e) => handleTouchEnd(e, index));
-                sortingArea.appendChild(dropZone);
+                dropZone.addEventListener('click', () => placeBottle(index));
 
                 if (color) {
                     const tube = createTubeElement(color);
                     dropZone.appendChild(tube);
                 }
+                sortingArea.appendChild(dropZone);
             });
         }
 
@@ -214,9 +208,7 @@
 
             uniqueColors.forEach(color => {
                 const tube = createTubeElement(color);
-                tube.setAttribute('draggable', true);
-                tube.addEventListener('dragstart', handleDragStart);
-                tube.addEventListener('touchstart', handleTouchStart);
+                tube.addEventListener('click', () => selectBottle(color));
                 availableTubesContainer.appendChild(tube);
             });
         }
@@ -232,38 +224,19 @@
             return tube;
         }
 
-        function handleDragStart(e) {
-            e.dataTransfer.setData('color', e.target.classList[1]);
+        function selectBottle(color) {
+            selectedColor = color;
+            const tubes = document.querySelectorAll('.test-tube');
+            tubes.forEach(tube => tube.classList.remove('selected'));
+            const selectedTube = document.querySelector(`.test-tube.${color}`);
+            if (selectedTube) selectedTube.classList.add('selected');
         }
 
-        function handleTouchStart(e) {
-            e.preventDefault();
-            const color = e.target.classList[1];
-            e.target.setAttribute('data-color', color);
-            e.target.classList.add('dragging');
-        }
-
-        function handleDragOver(e) {
-            e.preventDefault();
-            e.currentTarget.classList.add('over');
-        }
-
-        function handleDrop(e, index) {
-            e.preventDefault();
-            const color = e.dataTransfer.getData('color');
-            if (color) {
-                playerSequence[index] = color;
+        function placeBottle(index) {
+            if (selectedColor) {
+                playerSequence[index] = selectedColor;
                 renderSortingArea();
-                provideFeedback(color, index);
-            }
-        }
-
-        function handleTouchEnd(e, index) {
-            const color = e.target.getAttribute('data-color');
-            if (color) {
-                playerSequence[index] = color;
-                renderSortingArea();
-                provideFeedback(color, index);
+                provideFeedback(selectedColor, index);
             }
         }
 
