@@ -6,216 +6,7 @@
     <title>猜瓶子</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            margin: 0;
-            padding: 10px;
-            background-color: #f4f4f4;
-            min-height: 100vh;
-            overflow: hidden;
-        }
-
-        h1 {
-            font-size: 1.8em;
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .feedback {
-            margin-top: 10px;
-            font-size: 1.2em;
-            color: #333;
-            text-align: center;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            grid-gap: 5px;
-            width: 100%;
-            max-width: 90vw;
-        }
-
-        .sequence {
-            display: flex;
-            justify-content: center;
-            margin: 10px 0;
-            flex-wrap: wrap;
-            max-width: 90vw;
-        }
-
-        .test-tube {
-            position: relative;
-            width: 50px;
-            height: 100px;
-            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.3));
-            border-radius: 20px 20px 5px 5px;
-            border: 2px solid rgba(0, 0, 0, 0.2);
-            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.3), 0 5px 15px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            cursor: pointer;
-            transition: transform 0.2s;
-            user-select: none;
-        }
-
-        .test-tube .liquid {
-            width: 90%;
-            height: 60%;
-            background: inherit;
-            border-radius: 0 0 5px 5px;
-            position: absolute;
-            bottom: 0;
-            box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.3);
-        }
-
-        .red .liquid { background: linear-gradient(to top, #ff4d4d, #b30000); }
-        .yellow .liquid { background: linear-gradient(to top, #ffff66, #ffcc00); }
-        .blue .liquid { background: linear-gradient(to top, #66ccff, #0033cc); }
-        .green .liquid { background: linear-gradient(to top, #66ff66, #009900); }
-        .purple .liquid { background: linear-gradient(to top, #cc66ff, #6600cc); }
-        .orange .liquid { background: linear-gradient(to top, #ff9933, #cc3300); }
-        .pink .liquid { background: linear-gradient(to top, #ff99cc, #cc0066); }
-        .brown .liquid { background: linear-gradient(to top, #cc9966, #663300); }
-        .black .liquid { background: linear-gradient(to top, #666666, #000000); }
-
-        .drop-zone {
-            width: 50px;
-            height: 100px;
-            margin: 5px;
-            border: 2px dashed #888;
-            border-radius: 20px 20px 5px 5px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s;
-        }
-
-        .drop-zone.over {
-            background: rgba(0, 0, 0, 0.1);
-        }
-
-        button {
-            padding: 10px 20px;
-            margin-top: 10px;
-            font-size: 1em;
-            border: none;
-            border-radius: 5px;
-            background-color: #007bff;
-            color: white;
-            cursor: pointer;
-        }
-
-        button:active {
-            background-color: #0056b3;
-        }
-    </style>
-</head>
-<body>
-    <h1>猜瓶子</h1>
-
-    <!-- 反馈信息 -->
-    <div class="feedback">
-        <h3>反馈信息</h3>
-        <p id="feedback-message"></p>
-    </div>
-
-    <div>
-        <h2>排序区域</h2>
-        <div id="sorting-area" class="grid"></div>
-    </div>
-
-    <div id="result" class="feedback"></div>
-    <button id="retry-button" style="display: none;">重新尝试</button>
-    <button id="next-level-button" style="display: none;">下一关</button>
-
-    <div>
-        <h2>可选瓶子</h2>
-        <div id="available-tubes" class="sequence"></div>
-    </div>
-
-    <!-- 目标排序显示区域 -->
-    <div class="feedback">
-        <h3>正确的目标排序（开发者测试用）</h3>
-        <div id="correct-sequence" class="grid"></div>
-    </div>
-
-    <script>
-        const levels = [
-            { colors: ['red', 'yellow', 'blue'], numBottles: 24 },
-            { colors: ['red', 'yellow', 'blue', 'green'], numBottles: 24 },
-            { colors: ['red', 'yellow', 'blue', 'green', 'purple', 'orange'], numBottles: 24 },
-            { colors: ['red', 'yellow', 'blue', 'green', 'purple', 'orange', 'pink'], numBottles: 24 },
-            { colors: ['red', 'yellow', 'blue', 'green', 'purple', 'orange', 'pink', 'brown'], numBottles: 24 }
-        ];
-
-        let currentLevel = 0;
-        let targetSequence = [];
-        let playerSequence = [];
-        let guessCount = 0;
-
-        const sortingArea = document.getElementById('sorting-area');
-        const availableTubesContainer = document.getElementById('available-tubes');
-        const correctSequenceContainer = document.getElementById('correct-sequence');
-        const resultContainer = document.getElementById('result');
-        const feedbackMessage = document.getElementById('feedback-message');
-        const retryButton = document.getElementById('retry-button');
-        const nextLevelButton = document.getElementById('next-level-button');
-
-        function initLevel(level) {
-            const levelData = levels[level];
-            targetSequence = generateValidSequence(levelData.colors, levelData.numBottles);
-            playerSequence = Array(levelData.numBottles).fill(null);
-            guessCount = 0;
-            renderSortingArea();
-            renderAvailableTubes(levelData.colors);
-            renderCorrectSequence();
-            resultContainer.textContent = '';
-            feedbackMessage.textContent = '';
-            retryButton.style.display = 'none';
-            nextLevelButton.style.display = 'none';
-        }
-
-        function generateValidSequence(colors, numBottles) {
-            let sequence = [];
-            while (sequence.length < numBottles) {
-                const randomColor = colors[Math.floor(Math.random() * colors.length)];
-                sequence.push(randomColor);
-            }
-            return sequence;
-        }
-
-        function renderSortingArea() {
-            sortingArea.innerHTML = '';
-            playerSequence.forEach((color, index) => {
-                const dropZone = document.createElement('div');
-                dropZone.classList.add('drop-zone');
-                dropZone.addEventListener('dragover', handleDragOver);
-                dropZone.addEventListener('drop', (e) => handleDrop(e, index));
-                dropZone.addEventListener('touchend', (e) => handleTouchEnd(e, index));
-                sortingArea.appendChild(dropZone);
-
-                if (color) {
-                    const tube = createTubeElement(color);
-                    dropZone.appendChild(tube);
-                }
-            });
-        }
-
-        function renderAvailableTubes(colors) {
-            availableTubesContainer.innerHTML = '';
-
-            const uniqueColors = [...new Set(targetSequence)];
-
-            uniqueColors.forEach(color => {
-                const tube = createTubeElement(color);
-                tube.setAttribute('draggable', true);
-                tube.addEventListener('dragstart', handleDragStart);
+            ('dragstart', handleDragStart);
                 tube.addEventListener('touchstart', handleTouchStart);
                 availableTubesContainer.appendChild(tube);
             });
@@ -248,6 +39,7 @@
             e.preventDefault();
             const color = e.target.classList[1];
             e.target.setAttribute('data-color', color);
+            e.target.classList.add('dragging');
         }
 
         function handleDragOver(e) {
@@ -258,16 +50,24 @@
         function handleDrop(e, index) {
             e.preventDefault();
             const color = e.dataTransfer.getData('color');
-            playerSequence[index] = color;
-            renderSortingArea();
-            provideFeedback(color, index);
+
+            // 替换当前格子中的瓶子
+            if (color) {
+                playerSequence[index] = color;
+                renderSortingArea();
+                provideFeedback(color, index);
+            }
         }
 
         function handleTouchEnd(e, index) {
             const color = e.target.getAttribute('data-color');
-            playerSequence[index] = color;
-            renderSortingArea();
-            provideFeedback(color, index);
+
+            // 替换当前格子中的瓶子
+            if (color) {
+                playerSequence[index] = color;
+                renderSortingArea();
+                provideFeedback(color, index);
+            }
         }
 
         function provideFeedback(color, index) {
