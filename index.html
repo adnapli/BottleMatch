@@ -36,12 +36,23 @@
             align-items: center;
         }
         .bottle {
-            width: 50px;
-            height: 120px;
-            border-radius: 10px;
-            background-color: #76c7c0; /* 颜色可以根据需要修改 */
+            width: 40px;
+            height: 80px;
+            background-color: #76c7c0; /* 可以根据需要修改 */
+            border-radius: 20px 20px 5px 5px; /* 顶部圆弧 */
             position: relative;
             transition: transform 0.2s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .bottle::before {
+            content: '';
+            position: absolute;
+            top: -15px;
+            left: 10px;
+            width: 20px;
+            height: 15px;
+            background-color: #76c7c0; /* 瓶口颜色 */
+            border-radius: 50%;
         }
         .bottle:hover {
             transform: scale(1.1);
