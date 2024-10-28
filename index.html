@@ -92,7 +92,7 @@
         .black .liquid { background: linear-gradient(to top, #666666, #000000); }
 
         .drop-zone {
-            width: 35px;
+            width: 50px; /* 增大可放置区域 */
             height: 70px;
             margin: 1px;
             border: 1px dashed #888;
@@ -232,17 +232,15 @@
         function createTubeElement(color) {
             const tube = document.createElement('div');
             tube.classList.add('test-tube', color);
-
             const liquid = document.createElement('div');
             liquid.classList.add('liquid');
             tube.appendChild(liquid);
-
             return tube;
         }
 
         function handleTouchStart(e, element, color) {
             e.preventDefault();
-            draggedElement = element.cloneNode(true); // 克隆元素以显示拖动效果
+            draggedElement = element.cloneNode(true);
             draggedElement.classList.add('dragging');
             document.body.appendChild(draggedElement);
             draggedColor = color;
@@ -259,17 +257,6 @@
 
         function handleTouchEnd(e, index = null) {
             if (draggedElement) {
-                draggedElement.remove(); // 移除克隆的拖动元素
-                draggedElement = null;
-            }
-
-            if (index !== null && draggedColor) {
-                playerSequence[index] = draggedColor;
-                renderSortingArea();
-                provideFeedback(draggedColor, index);
-                draggedColor = null;
-            } else {
-                // 检测触摸点是否在某个格子内
                 const touch = e.changedTouches[0];
                 const dropZones = document.elementsFromPoint(touch.clientX, touch.clientY);
                 const targetZone = dropZones.find(zone => zone.classList.contains('drop-zone'));
@@ -280,6 +267,9 @@
                     renderSortingArea();
                     provideFeedback(draggedColor, zoneIndex);
                 }
+
+                draggedElement.remove();
+                draggedElement = null;
             }
         }
 
