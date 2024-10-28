@@ -268,6 +268,18 @@
                 renderSortingArea();
                 provideFeedback(draggedColor, index);
                 draggedColor = null;
+            } else {
+                // 检测触摸点是否在某个格子内
+                const touch = e.changedTouches[0];
+                const dropZones = document.elementsFromPoint(touch.clientX, touch.clientY);
+                const targetZone = dropZones.find(zone => zone.classList.contains('drop-zone'));
+
+                if (targetZone) {
+                    const zoneIndex = Array.from(sortingArea.children).indexOf(targetZone);
+                    playerSequence[zoneIndex] = draggedColor;
+                    renderSortingArea();
+                    provideFeedback(draggedColor, zoneIndex);
+                }
             }
         }
 
