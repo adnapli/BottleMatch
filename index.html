@@ -61,6 +61,7 @@
             margin: 2px;
             position: relative;
             overflow: hidden;
+            user-select: none;
         }
 
         .test-tube.selected {
@@ -97,6 +98,11 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            position: relative;
+        }
+
+        .drop-zone.over {
+            background: rgba(0, 0, 0, 0.1);
         }
 
         .fixed-tube-bar {
@@ -195,6 +201,8 @@
                 const dropZone = document.createElement('div');
                 dropZone.classList.add('drop-zone');
                 dropZone.addEventListener('click', () => placeBottle(index));
+                dropZone.addEventListener('dragover', handleDragOver);
+                dropZone.addEventListener('drop', (e) => handleDrop(e, index));
 
                 if (color) {
                     const tube = createTubeElement(color);
@@ -211,7 +219,9 @@
 
             uniqueColors.forEach(color => {
                 const tube = createTubeElement(color);
+                tube.setAttribute('draggable', true);
                 tube.addEventListener('click', () => selectBottle(color));
+                tube.addEventListener('dragstart', handleDragStart);
                 availableTubesContainer.appendChild(tube);
             });
         }
@@ -240,6 +250,25 @@
                 playerSequence[index] = selectedColor;
                 renderSortingArea();
                 provideFeedback(selectedColor, index);
+            }
+        }
+
+        function handleDragStart(e) {
+            e.dataTransfer.setData('color', e.target.classList[1]);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('over');
+        }
+
+        function handleDrop(e, index) {
+            e.preventDefault();
+            const color = e.dataTransfer.getData('color');
+            if (color) {
+                playerSequence[index] = color;
+                renderSortingArea();
+                provideFeedback(color, index);
             }
         }
 
