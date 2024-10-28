@@ -15,8 +15,11 @@
         #grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(6, 1fr);
             grid-gap: 10px;
             margin-bottom: 10px;
+            width: 100%;
+            max-width: 600px;
         }
         .cell {
             width: 70px;
@@ -41,6 +44,8 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
+            width: 100%;
+            max-width: 600px;
         }
     </style>
 </head>
@@ -53,18 +58,22 @@
 
 <script>
     const targetOrder = [
-        ['red', 'blue', 'green', 'yellow'], // Row 1
-        ['blue', 'green', 'yellow', 'red'], // Row 2
-        // Add more rows as needed
+        ['red', 'blue', 'green', 'yellow'],
+        ['blue', 'green', 'yellow', 'red'],
+        ['green', 'red', 'blue', 'orange'],
+        ['yellow', 'blue', 'red', 'green'],
+        ['orange', 'yellow', 'blue', 'green'],
+        ['blue', 'green', 'red', 'yellow'],
     ];
 
     const grid = document.getElementById('grid');
     const bottleContainer = document.getElementById('bottle-container');
     const feedbackText = document.getElementById('feedback');
     const gridWidth = 4;
+    const gridHeight = 6;
 
     function createGrid() {
-        for (let i = 0; i < targetOrder.length * gridWidth; i++) {
+        for (let i = 0; i < gridWidth * gridHeight; i++) {
             const cell = document.createElement('div');
             cell.classList.add('cell');
             cell.dataset.index = i;
