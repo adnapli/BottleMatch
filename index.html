@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>猜瓶子</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 10px;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            font-size: 1.8em;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .feedback {
+            margin-top: 10px;
+            font-size: 1.2em;
+            color: #333;
+            text-align: center;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            grid-gap: 5px;
+            width: 100%;
+            max-width: 380px;
+        }
+
+        .sequence {
+            display: flex;
+            justify-content: center;
+            margin: 10px 0;
+            flex-wrap: wrap;
+            max-width: 380px;
+        }
+
+        .test-tube {
+            position: relative;
+            width: 50px;
+            height: 150px;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.3));
+            border-radius: 20px 20px 5px 5px;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.3), 0 5px 15px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .test-tube .liquid {
+            width: 90%;
+            height: 60%;
+            background: inherit;
+            border-radius: 0 0 5px 5px;
+            position: absolute;
+            bottom: 0;
+            box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.3);
+        }
+
+        .red .liquid { background: linear-gradient(to top, #ff4d4d, #b30000); }
+        .yellow .liquid { background: linear-gradient(to top, #ffff66, #ffcc00); }
+        .blue .liquid { background: linear-gradient(to top, #66ccff, #0033cc); }
+        .green .liquid { background: linear-gradient(to top, #66ff66, #009900); }
+        .purple .liquid { background: linear-gradient(to top, #cc66ff, #6600cc); }
+        .orange .liquid { background: linear-gradient(to top, #ff9933, #cc3300); }
+        .pink .liquid { background: linear-gradient(to top, #ff99cc, #cc0066); }
+        .brown .liquid { background: linear-gradient(to top, #cc9966, #663300); }
+        .black .liquid { background: linear-gradient(to top, #666666, #000000); }
+
+        .drop-zone {
+            width: 50px;
+            height: 150px;
+            margin: 5px;
+            border: 2px dashed #888;
+            border-radius: 20px 20px 5px 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .drop-zone.over {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-top: 10px;
+            font-size: 1em;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:active {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>猜瓶子</h1>
+
+    <!-- 反馈信息 -->
+    <div class="feedback">
+        <h3>反馈信息</h3>
+        <p id="feedback-message"></p>
+    </div>
+
+    <div>
+        <h2>排序区域</h2>
+        <div id="sorting-area" class="grid"></div>
+    </div>
+
+    <div id="result" class="feedback"></div>
+    <button id="retry-button" style="display: none;">重新尝试</button>
+    <button id="next-level-button" style="display: none;">下一关</button>
+
+    <div>
+        <h2>可选瓶子</h2>
+        <div id="available-tubes" class="sequence"></div>
+    </div>
+
+    <!-- 目标排序显示区域 -->
+    <div class="feedback">
+        <h3>正确的目标排序（开发者测试用）</h3>
+        <div id="correct-sequence" class="grid"></div>
+    </div>
+
+    <script>
+        const levels = [
+            { colors: ['red', 'yellow', 'blue'], numBottles: 24 },
+            { colors: ['red', 'yellow', 'blue', 'green'], numBottles: 24 },
+            { colors: ['red', 'yellow', 'blue', 'green', 'purple', 'orange'], numBottles: 24 },
+            { colors: ['red', 'yellow', 'blue', 'green', 'purple', 'orange', 'pink'], numBottles: 24 },
+            { colors: ['red', 'yellow', 'blue', 'green', 'purple', 'orange', 'pink', 'brown'], numBottles: 24 }
+        ];
+
+        let currentLevel = 0;
+        let targetSequence = [];
+        let playerSequence = [];
+        let guessCount = 0;
+
+        const sortingArea = document.getElementById('sorting-area');
+        const availableTubesContainer = document.getElementById('available-tubes');
+        const correctSequenceContainer = document.getElementById('correct-sequence');
+        const resultContainer = document.getElementById('result');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const retryButton = document.getElementById('retry-button');
+        const nextLevelButton = document.getElementById('next-level-button');
+
+        function initLevel(level) {
+            const levelData = levels[level];
+            targetSequence = generateValidSequence(levelData.colors, levelData.numBottles);
+            playerSequence = Array(levelData.numBottles).fill(null);
+            guessCount = 0;
+            renderSortingArea();
+            renderAvailableTubes(levelData.colors);
+            renderCorrectSequence();
+            resultContainer.textContent = '';
+            feedbackMessage.textContent = '';
+            retryButton.style.display = 'none';
+            nextLevelButton.style.display = 'none';
+        }
+
+        function generateValidSequence(colors, numBottles) {
+            let sequence = [];
+            while (sequence.length < numBottles) {
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                sequence.push(randomColor);
+            }
+            return sequence;
+        }
+
+        function renderSortingArea() {
+            sortingArea.innerHTML = '';
+            playerSequence.forEach((color, index) => {
+                const dropZone = document.createElement('div');
+                dropZone.classList.add('drop-zone');
+                dropZone.addEventListener('dragover', handleDragOver);
+                dropZone.addEventListener('drop', (e) => handleDrop(e, index));
+                sortingArea.appendChild(dropZone);
+
+                if (color) {
+                    const tube = createTubeElement(color);
+                    dropZone.appendChild(tube);
+                }
+            });
+        }
+
+        function renderAvailableTubes(colors) {
+            availableTubesContainer.innerHTML = '';
+
+            // 获取目标排序中唯一的颜色集合
+            const uniqueColors = [...new Set(targetSequence)];
+
+            uniqueColors.forEach(color => {
+                const tube = createTubeElement(color);
+                tube.setAttribute('draggable', true);
+                tube.addEventListener('dragstart', handleDragStart);
+                availableTubesContainer.appendChild(tube);
+            });
+        }
+
+        function renderCorrectSequence() {
+            correctSequenceContainer.innerHTML = '';
+            targetSequence.forEach(color => {
+                const tube = createTubeElement(color);
+                correctSequenceContainer.appendChild(tube);
+            });
+        }
+
+        function createTubeElement(color) {
+            const tube = document.createElement('div');
+            tube.classList.add('test-tube', color);
+
+            const liquid = document.createElement('div');
+            liquid.classList.add('liquid');
+            tube.appendChild(liquid);
+
+            return tube;
+        }
+
+        function handleDragStart(e) {
+            e.dataTransfer.setData('color', e.target.classList[1]);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('over');
+        }
+
+        function handleDrop(e, index) {
+            e.preventDefault();
+            const color = e.dataTransfer.getData('color');
+
+            // 替换当前格子中的瓶子
+            playerSequence[index] = color;
+            renderSortingArea();
+            provideFeedback(color, index);
+        }
+
+        function provideFeedback(color, index) {
+            const row = Math.floor(index / 6);
+            const rowStart = row * 6;
+            const rowEnd = rowStart + 6;
+            const currentRow = targetSequence.slice(rowStart, rowEnd);
+
+            if (color === targetSequence[index]) {
+                feedbackMessage.textContent = '位置正确！';
+                feedbackMessage.style.color = 'green';
+            } else if (currentRow.includes(color)) {
+                feedbackMessage.textContent = '颜色存在，但位置不正确。';
+                feedbackMessage.style.color = 'orange';
+            } else {
+                feedbackMessage.textContent = '颜色不存在！';
+                feedbackMessage.style.color = 'red';
+            }
+        }
+
+        function retryLevel() {
+            playerSequence = Array(playerSequence.length).fill(null);
+            renderSortingArea();
+            feedbackMessage.textContent = '';
+            resultContainer.textContent = '';
+        }
+
+        function nextLevel() {
+            if (currentLevel < levels.length - 1) {
+                currentLevel++;
+                initLevel(currentLevel);
+            } else {
+                resultContainer.textContent = '你已完成所有关卡！';
+            }
+        }
+
+        retryButton.addEventListener('click', retryLevel);
+        nextLevelButton.addEventListener('click', nextLevel);
+
+        initLevel(currentLevel);
+    </script>
+</body>
+</html>
