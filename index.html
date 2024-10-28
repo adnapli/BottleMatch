@@ -57,7 +57,6 @@
             display: flex;
             align-items: flex-end;
             justify-content: center;
-            cursor: pointer;
             margin: 2px;
             position: relative;
             overflow: hidden;
@@ -65,8 +64,11 @@
             touch-action: none; /* 禁用浏览器默认的触摸行为 */
         }
 
-        .test-tube.dragging {
+        .dragging {
             opacity: 0.5;
+            position: absolute;
+            z-index: 1000;
+            pointer-events: none;
         }
 
         .test-tube .liquid {
@@ -202,7 +204,7 @@
                 const dropZone = document.createElement('div');
                 dropZone.classList.add('drop-zone');
 
-                // 支持触摸拖动放置
+                // 支持触摸放置
                 dropZone.addEventListener('touchend', (e) => handleTouchEnd(e, index));
 
                 if (color) {
@@ -240,9 +242,10 @@
 
         function handleTouchStart(e, element, color) {
             e.preventDefault();
-            draggedElement = element;
-            draggedColor = color;
+            draggedElement = element.cloneNode(true); // 克隆元素以显示拖动效果
             draggedElement.classList.add('dragging');
+            document.body.appendChild(draggedElement);
+            draggedColor = color;
         }
 
         function handleTouchMove(e) {
@@ -250,27 +253,22 @@
             if (!draggedElement) return;
 
             const touch = e.touches[0];
-            draggedElement.style.position = 'absolute';
             draggedElement.style.left = `${touch.clientX - draggedElement.offsetWidth / 2}px`;
             draggedElement.style.top = `${touch.clientY - draggedElement.offsetHeight / 2}px`;
         }
 
         function handleTouchEnd(e, index = null) {
-            if (!draggedElement) return;
-
-            draggedElement.style.position = '';
-            draggedElement.style.left = '';
-            draggedElement.style.top = '';
-            draggedElement.classList.remove('dragging');
+            if (draggedElement) {
+                draggedElement.remove(); // 移除克隆的拖动元素
+                draggedElement = null;
+            }
 
             if (index !== null && draggedColor) {
                 playerSequence[index] = draggedColor;
                 renderSortingArea();
                 provideFeedback(draggedColor, index);
+                draggedColor = null;
             }
-
-            draggedElement = null;
-            draggedColor = null;
         }
 
         function provideFeedback(color, index) {
