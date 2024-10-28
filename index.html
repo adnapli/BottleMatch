@@ -1,178 +1,83 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>猜瓶子</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #f5f5f5;
-            margin: 0;
-            padding: 10px;
-        }
-        #grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            grid-gap: 5px;
-            margin-top: 20px;
-            width: 100%;
-            max-width: 400px;
-        }
-        .cell {
-            width: 80px;
-            height: 100px;
-            border: 2px dashed #ccc;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #fff;
-            position: relative;
-        }
-        .bottle {
-            width: 60%;
-            height: 70%;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: transform 0.1s;
-        }
-        .feedback {
-            margin-top: 10px;
-            color: #333;
-            font-weight: bold;
-        }
-        #reward {
-            margin-top: 10px;
-            color: green;
-            font-weight: bold;
-        }
-        #selectArea {
-            display: flex;
-            justify-content: center;
-            margin: 20px 0;
-            flex-wrap: wrap;
-            width: 100%;
-            max-width: 400px;
-        }
-        .selectBottle {
-            width: 60px;
-            height: 80px;
-            margin: 5px;
-            border-radius: 10px;
-            cursor: pointer;
-        }
-    </style>
-</head>
-<body>
+    function handleTouchStart(e, element, color) {
+        e.preventDefault();
+        draggedElement = element.cloneNode(true);
+        draggedElement.classList.add('dragging');
+        document.body.appendChild(draggedElement);
+        draggedColor = color;
 
-<h1>猜瓶子</h1>
-<div id="selectArea"></div>
-<div id="grid"></div>
-<div class="feedback" id="feedback"></div>
-<div class="feedback" id="reward"></div>
-<div id="targetOrder" style="display:none;"></div>
-
-<script>
-    const colors = ['red', 'yellow', 'blue', 'green', 'purple', 'orange'];
-    const totalRows = 4;
-    const bottlesPerRow = 4;
-    let targetOrder = [];
-    let completedRows = 0;
-
-    function generateTargetOrder() {
-        targetOrder = [];
-        for (let i = 0; i < totalRows; i++) {
-            const row = [];
-            let uniqueColors = new Set();
-            while (row.length < bottlesPerRow) {
-                const color = colors[Math.floor(Math.random() * colors.length)];
-                if (!uniqueColors.has(color)) {
-                    row.push(color);
-                    uniqueColors.add(color);
-                }
-            }
-            targetOrder.push(row);
-        }
-    }
-
-    function createSelectArea() {
-        const selectArea = document.getElementById('selectArea');
-        colors.forEach(color => {
-            const bottle = document.createElement('div');
-            bottle.className = 'selectBottle';
-            bottle.style.backgroundColor = color;
-            bottle.draggable = true;
-            bottle.ondragstart = (e) => {
-                e.dataTransfer.setData('text', color);
-            };
-            selectArea.appendChild(bottle);
+        // 增加放置区域的标记
+        document.querySelectorAll('.drop-zone').forEach(zone => {
+            zone.classList.add('over');
         });
     }
 
-    function createGrid() {
-        const grid = document.getElementById('grid');
-        grid.innerHTML = '';
-        for (let i = 0; i < totalRows; i++) {
-            for (let j = 0; j < bottlesPerRow; j++) {
-                const cell = document.createElement('div');
-                cell.className = 'cell';
-                cell.ondragover = (e) => e.preventDefault();
-                cell.ondrop = (e) => handleDrop(e, i);
-                grid.appendChild(cell);
+    function handleTouchMove(e) {
+        e.preventDefault();
+        if (!draggedElement) return;
+
+        const touch = e.touches[0];
+        draggedElement.style.left = `${touch.clientX - draggedElement.offsetWidth / 2}px`;
+        draggedElement.style.top = `${touch.clientY - draggedElement.offsetHeight / 2}px`;
+    }
+
+    function handleTouchEnd(e, index = null) {
+        if (draggedElement) {
+            const touch = e.changedTouches[0];
+            const dropZones = document.elementsFromPoint(touch.clientX, touch.clientY);
+            const targetZone = dropZones.find(zone => zone.classList.contains('drop-zone'));
+
+            // 移除放置区域的标记
+            document.querySelectorAll('.drop-zone').forEach(zone => {
+                zone.classList.remove('over');
+            });
+
+            if (targetZone) {
+                const zoneIndex = Array.from(sortingArea.children).indexOf(targetZone);
+                playerSequence[zoneIndex] = draggedColor;
+                renderSortingArea();
+                provideFeedback(draggedColor, zoneIndex);
             }
+
+            draggedElement.remove();
+            draggedElement = null;
         }
     }
 
-    function handleDrop(e, row) {
-        const color = e.dataTransfer.getData('text');
-        const cell = e.target;
-        cell.style.backgroundColor = color;
+    function provideFeedback(color, index) {
+        const row = Math.floor(index / 6);
+        const rowStart = row * 6;
+        const rowEnd = rowStart + 6;
+        const currentRow = targetSequence.slice(rowStart, rowEnd);
 
-        if (checkRow(row)) {
-            completedRows++;
-            document.getElementById('reward').innerText = `成功匹配第${row + 1}行！`;
-            lockRow(row);
-            if (completedRows === totalRows) {
-                alert('所有行已匹配成功！');
-            }
+        if (color === targetSequence[index]) {
+            feedbackMessage.textContent = '位置正确！';
+            feedbackMessage.style.color = 'green';
+        } else if (currentRow.includes(color)) {
+            feedbackMessage.textContent = '颜色存在，但位置不正确。';
+            feedbackMessage.style.color = 'orange';
         } else {
-            document.getElementById('feedback').innerText = `第${row + 1}行有颜色不匹配！`;
+            feedbackMessage.textContent = '颜色不存在！';
+            feedbackMessage.style.color = 'red';
         }
     }
 
-    function checkRow(row) {
-        const cells = document.querySelectorAll('.cell');
-        let matched = true;
-        for (let col = 0; col < bottlesPerRow; col++) {
-            if (cells[row * bottlesPerRow + col].style.backgroundColor !== targetOrder[row][col]) {
-                matched = false;
-                break;
-            }
-        }
-        return matched;
+    function retryLevel() {
+        playerSequence = Array(playerSequence.length).fill(null);
+        renderSortingArea();
+        feedbackMessage.textContent = '';
     }
 
-    function lockRow(row) {
-        const cells = document.querySelectorAll('.cell');
-        for (let col = 0; col < bottlesPerRow; col++) {
-            cells[row * bottlesPerRow + col].ondragover = null;
-            cells[row * bottlesPerRow + col].ondrop = null;
-            cells[row * bottlesPerRow + col].style.pointerEvents = 'none'; // 禁用交互
+    function nextLevel() {
+        if (currentLevel < levels.length - 1) {
+            currentLevel++;
+            initLevel(currentLevel);
+        } else {
+            feedbackMessage.textContent = '你已完成所有关卡！';
         }
     }
 
-    generateTargetOrder();
-    createSelectArea();
-    createGrid();
+    retryButton.addEventListener('click', retryLevel);
+    nextLevelButton.addEventListener('click', nextLevel);
 
-    // 调试用：在页面下方显示正确的目标排序
-    const targetOrderDiv = document.getElementById('targetOrder');
-    targetOrderDiv.style.display = 'block';
-    targetOrderDiv.innerHTML = `<strong>正确目标排序:</strong> ${JSON.stringify(targetOrder)}`;
+    initLevel(currentLevel);
 </script>
-
-</body>
-</html>
