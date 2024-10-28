@@ -1,315 +1,83 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>猜瓶子</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-            height: 100vh;
-            overflow: hidden;
-        }
+    function handleTouchStart(e, element, color) {
+        e.preventDefault();
+        draggedElement = element.cloneNode(true);
+        draggedElement.classList.add('dragging');
+        document.body.appendChild(draggedElement);
+        draggedColor = color;
 
-        h1 {
-            font-size: 1.5em;
-            color: #333;
-            margin: 5px 0;
-        }
+        // 增加放置区域的标记
+        document.querySelectorAll('.drop-zone').forEach(zone => {
+            zone.classList.add('over');
+        });
+    }
 
-        .feedback {
-            font-size: 1em;
-            color: #333;
-            text-align: center;
-            margin: 5px 0;
-        }
+    function handleTouchMove(e) {
+        e.preventDefault();
+        if (!draggedElement) return;
 
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            grid-gap: 2px;
-            width: 95%;
-            max-width: 360px;
-        }
+        const touch = e.touches[0];
+        draggedElement.style.left = `${touch.clientX - draggedElement.offsetWidth / 2}px`;
+        draggedElement.style.top = `${touch.clientY - draggedElement.offsetHeight / 2}px`;
+    }
 
-        .sequence {
-            display: flex;
-            justify-content: center;
-            margin: 5px 0;
-            flex-wrap: wrap;
-            width: 100%;
-        }
+    function handleTouchEnd(e, index = null) {
+        if (draggedElement) {
+            const touch = e.changedTouches[0];
+            const dropZones = document.elementsFromPoint(touch.clientX, touch.clientY);
+            const targetZone = dropZones.find(zone => zone.classList.contains('drop-zone'));
 
-        .test-tube {
-            width: 35px;
-            height: 70px;
-            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.3));
-            border-radius: 5px 5px 3px 3px;
-            border: 1px solid rgba(0, 0, 0, 0.2);
-            box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.3), 0 2px 5px rgba(0, 0, 0, 0.2);
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            margin: 2px;
-            position: relative;
-            overflow: hidden;
-            user-select: none;
-            touch-action: none; /* 禁用浏览器默认的触摸行为 */
-        }
-
-        .dragging {
-            opacity: 0.5;
-            position: absolute;
-            z-index: 1000;
-            pointer-events: none;
-        }
-
-        .test-tube .liquid {
-            width: 100%;
-            height: 50%;
-            background: inherit;
-            border-radius: 0 0 3px 3px;
-            position: absolute;
-            bottom: 0;
-            box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.3);
-        }
-
-        .red .liquid { background: linear-gradient(to top, #ff4d4d, #b30000); }
-        .yellow .liquid { background: linear-gradient(to top, #ffff66, #ffcc00); }
-        .blue .liquid { background: linear-gradient(to top, #66ccff, #0033cc); }
-        .green .liquid { background: linear-gradient(to top, #66ff66, #009900); }
-        .purple .liquid { background: linear-gradient(to top, #cc66ff, #6600cc); }
-        .orange .liquid { background: linear-gradient(to top, #ff9933, #cc3300); }
-        .pink .liquid { background: linear-gradient(to top, #ff99cc, #cc0066); }
-        .brown .liquid { background: linear-gradient(to top, #cc9966, #663300); }
-        .black .liquid { background: linear-gradient(to top, #666666, #000000); }
-
-        .drop-zone {
-            width: 50px; /* 增大可放置区域 */
-            height: 70px;
-            margin: 1px;
-            border: 1px dashed #888;
-            border-radius: 5px 5px 3px 3px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-
-        .drop-zone.over {
-            background: rgba(0, 0, 0, 0.1);
-        }
-
-        .fixed-tube-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: center;
-            background: #fff;
-            padding: 5px;
-            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
-        }
-
-        button {
-            padding: 5px 10px;
-            margin: 5px;
-            font-size: 0.8em;
-            border: none;
-            border-radius: 5px;
-            background-color: #007bff;
-            color: white;
-            cursor: pointer;
-        }
-
-        button:active {
-            background-color: #0056b3;
-        }
-    </style>
-</head>
-<body>
-    <h1>猜瓶子</h1>
-
-    <div class="feedback">
-        <h3>反馈信息</h3>
-        <p id="feedback-message"></p>
-    </div>
-
-    <div>
-        <div id="sorting-area" class="grid"></div>
-    </div>
-
-    <div id="result" class="feedback"></div>
-    <button id="retry-button" style="display: none;">重新尝试</button>
-    <button id="next-level-button" style="display: none;">下一关</button>
-
-    <!-- 固定的可选瓶子栏 -->
-    <div class="fixed-tube-bar">
-        <div id="available-tubes" class="sequence"></div>
-    </div>
-
-    <script>
-        const levels = [
-            { colors: ['red', 'yellow', 'blue'], numBottles: 24 },
-            { colors: ['red', 'yellow', 'blue', 'green'], numBottles: 24 },
-            { colors: ['red', 'yellow', 'blue', 'green', 'purple', 'orange'], numBottles: 24 },
-            { colors: ['red', 'yellow', 'blue', 'green', 'purple', 'orange', 'pink'], numBottles: 24 },
-            { colors: ['red', 'yellow', 'blue', 'green', 'purple', 'orange', 'pink', 'brown'], numBottles: 24 }
-        ];
-
-        let currentLevel = 0;
-        let targetSequence = [];
-        let playerSequence = [];
-        let draggedElement = null;
-        let draggedColor = null;
-
-        const sortingArea = document.getElementById('sorting-area');
-        const availableTubesContainer = document.getElementById('available-tubes');
-        const feedbackMessage = document.getElementById('feedback-message');
-        const retryButton = document.getElementById('retry-button');
-        const nextLevelButton = document.getElementById('next-level-button');
-
-        function initLevel(level) {
-            const levelData = levels[level];
-            targetSequence = generateValidSequence(levelData.colors, levelData.numBottles);
-            playerSequence = Array(levelData.numBottles).fill(null);
-            renderSortingArea();
-            renderAvailableTubes(levelData.colors);
-            feedbackMessage.textContent = '';
-            retryButton.style.display = 'none';
-            nextLevelButton.style.display = 'none';
-        }
-
-        function generateValidSequence(colors, numBottles) {
-            let sequence = [];
-            while (sequence.length < numBottles) {
-                const randomColor = colors[Math.floor(Math.random() * colors.length)];
-                sequence.push(randomColor);
-            }
-            return sequence;
-        }
-
-        function renderSortingArea() {
-            sortingArea.innerHTML = '';
-            playerSequence.forEach((color, index) => {
-                const dropZone = document.createElement('div');
-                dropZone.classList.add('drop-zone');
-
-                // 支持触摸放置
-                dropZone.addEventListener('touchend', (e) => handleTouchEnd(e, index));
-
-                if (color) {
-                    const tube = createTubeElement(color);
-                    dropZone.appendChild(tube);
-                }
-                sortingArea.appendChild(dropZone);
+            // 移除放置区域的标记
+            document.querySelectorAll('.drop-zone').forEach(zone => {
+                zone.classList.remove('over');
             });
-        }
 
-        function renderAvailableTubes(colors) {
-            availableTubesContainer.innerHTML = '';
-
-            const uniqueColors = [...new Set(targetSequence)];
-
-            uniqueColors.forEach(color => {
-                const tube = createTubeElement(color);
-                tube.addEventListener('touchstart', (e) => handleTouchStart(e, tube, color), { passive: false });
-                tube.addEventListener('touchmove', (e) => handleTouchMove(e), { passive: false });
-                tube.addEventListener('touchend', (e) => handleTouchEnd(e), { passive: false });
-                availableTubesContainer.appendChild(tube);
-            });
-        }
-
-        function createTubeElement(color) {
-            const tube = document.createElement('div');
-            tube.classList.add('test-tube', color);
-            const liquid = document.createElement('div');
-            liquid.classList.add('liquid');
-            tube.appendChild(liquid);
-            return tube;
-        }
-
-        function handleTouchStart(e, element, color) {
-            e.preventDefault();
-            draggedElement = element.cloneNode(true);
-            draggedElement.classList.add('dragging');
-            document.body.appendChild(draggedElement);
-            draggedColor = color;
-        }
-
-        function handleTouchMove(e) {
-            e.preventDefault();
-            if (!draggedElement) return;
-
-            const touch = e.touches[0];
-            draggedElement.style.left = `${touch.clientX - draggedElement.offsetWidth / 2}px`;
-            draggedElement.style.top = `${touch.clientY - draggedElement.offsetHeight / 2}px`;
-        }
-
-        function handleTouchEnd(e, index = null) {
-            if (draggedElement) {
-                const touch = e.changedTouches[0];
-                const dropZones = document.elementsFromPoint(touch.clientX, touch.clientY);
-                const targetZone = dropZones.find(zone => zone.classList.contains('drop-zone'));
-
-                if (targetZone) {
-                    const zoneIndex = Array.from(sortingArea.children).indexOf(targetZone);
-                    playerSequence[zoneIndex] = draggedColor;
-                    renderSortingArea();
-                    provideFeedback(draggedColor, zoneIndex);
-                }
-
-                draggedElement.remove();
-                draggedElement = null;
+            if (targetZone) {
+                const zoneIndex = Array.from(sortingArea.children).indexOf(targetZone);
+                playerSequence[zoneIndex] = draggedColor;
+                renderSortingArea();
+                provideFeedback(draggedColor, zoneIndex);
             }
+
+            draggedElement.remove();
+            draggedElement = null;
         }
+    }
 
-        function provideFeedback(color, index) {
-            const row = Math.floor(index / 6);
-            const rowStart = row * 6;
-            const rowEnd = rowStart + 6;
-            const currentRow = targetSequence.slice(rowStart, rowEnd);
+    function provideFeedback(color, index) {
+        const row = Math.floor(index / 6);
+        const rowStart = row * 6;
+        const rowEnd = rowStart + 6;
+        const currentRow = targetSequence.slice(rowStart, rowEnd);
 
-            if (color === targetSequence[index]) {
-                feedbackMessage.textContent = '位置正确！';
-                feedbackMessage.style.color = 'green';
-            } else if (currentRow.includes(color)) {
-                feedbackMessage.textContent = '颜色存在，但位置不正确。';
-                feedbackMessage.style.color = 'orange';
-            } else {
-                feedbackMessage.textContent = '颜色不存在！';
-                feedbackMessage.style.color = 'red';
-            }
+        if (color === targetSequence[index]) {
+            feedbackMessage.textContent = '位置正确！';
+            feedbackMessage.style.color = 'green';
+        } else if (currentRow.includes(color)) {
+            feedbackMessage.textContent = '颜色存在，但位置不正确。';
+            feedbackMessage.style.color = 'orange';
+        } else {
+            feedbackMessage.textContent = '颜色不存在！';
+            feedbackMessage.style.color = 'red';
         }
+    }
 
-        function retryLevel() {
-            playerSequence = Array(playerSequence.length).fill(null);
-            renderSortingArea();
-            feedbackMessage.textContent = '';
+    function retryLevel() {
+        playerSequence = Array(playerSequence.length).fill(null);
+        renderSortingArea();
+        feedbackMessage.textContent = '';
+    }
+
+    function nextLevel() {
+        if (currentLevel < levels.length - 1) {
+            currentLevel++;
+            initLevel(currentLevel);
+        } else {
+            feedbackMessage.textContent = '你已完成所有关卡！';
         }
+    }
 
-        function nextLevel() {
-            if (currentLevel < levels.length - 1) {
-                currentLevel++;
-                initLevel(currentLevel);
-            } else {
-                feedbackMessage.textContent = '你已完成所有关卡！';
-            }
-        }
+    retryButton.addEventListener('click', retryLevel);
+    nextLevelButton.addEventListener('click', nextLevel);
 
-        retryButton.addEventListener('click', retryLevel);
-        nextLevelButton.addEventListener('click', nextLevel);
-
-        initLevel(currentLevel);
-    </script>
-</body>
-</html>
+    initLevel(currentLevel);
+</script>
