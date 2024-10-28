@@ -10,167 +10,167 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            height: 100vh;
+            background-color: #f5f5f5;
             margin: 0;
-            padding: 0;
-            background-color: #f0f0f0;
+            padding: 10px;
         }
         #grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            grid-template-rows: repeat(6, 1fr);
+            grid-gap: 5px;
+            margin-top: 20px;
             width: 100%;
             max-width: 400px;
-            margin-bottom: 20px;
         }
         .cell {
+            width: 80px;
+            height: 100px;
             border: 2px dashed #ccc;
-            width: 100%;
-            height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
+            background-color: #fff;
             position: relative;
         }
         .bottle {
-            width: 40px;
-            height: 70px;
-            margin: 5px;
+            width: 60%;
+            height: 70%;
             background-color: transparent;
-            border: 2px solid #000;
             border-radius: 10px;
-            position: absolute;
             cursor: pointer;
-            user-select: none;
-        }
-        .selected {
-            opacity: 0.5;
+            transition: transform 0.1s;
         }
         .feedback {
-            margin: 20px;
-            font-size: 16px;
+            margin-top: 10px;
             color: #333;
+            font-weight: bold;
         }
-        .bottle-container {
+        #selectArea {
             display: flex;
-            justify-content: space-around;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
             width: 100%;
-            margin-bottom: 10px;
+            max-width: 400px;
+        }
+        .selectBottle {
+            width: 60px;
+            height: 80px;
+            margin: 5px;
+            border-radius: 10px;
+            background-color: red; /* 默认颜色 */
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
 
-    <div class="feedback" id="feedback">选择瓶子并拖动到上方的格子中！</div>
-    <div id="grid"></div>
-    <div class="bottle-container" id="bottleContainer"></div>
-    <div class="targetSequence" id="targetSequence"></div>
+<h1>猜瓶子</h1>
+<div id="selectArea"></div>
+<div id="grid"></div>
+<div class="feedback" id="feedback"></div>
+<div class="feedback" id="reward"></div>
+<div id="targetOrder" style="display:none;"></div>
 
-    <script>
-        const rows = 6;
-        const cols = 4;
-        const bottleColors = ['红', '黄', '蓝', '绿', '紫', '橙'];
-        const targetSequence = [];
-        let currentBottles = [];
+<script>
+    const colors = ['red', 'yellow', 'blue', 'green', 'purple', 'orange', 'pink', 'cyan'];
+    const totalRows = 4;
+    const bottlesPerRow = 4;
+    let targetOrder = [];
+    let selectedBottles = [];
+    let completedRows = 0;
 
-        function generateTargetSequence() {
-            for (let r = 0; r < rows; r++) {
-                const rowColors = [];
-                for (let c = 0; c < cols; c++) {
-                    const color = bottleColors[Math.floor(Math.random() * bottleColors.length)];
-                    rowColors.push(color);
-                }
-                targetSequence.push(rowColors);
-            }
-        }
-
-        function setupGrid() {
-            const grid = document.getElementById('grid');
-            grid.innerHTML = '';
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    cell.dataset.row = r;
-                    cell.dataset.col = c;
-                    grid.appendChild(cell);
+    function generateTargetOrder() {
+        targetOrder = [];
+        for (let i = 0; i < totalRows; i++) {
+            const row = [];
+            let uniqueColors = new Set();
+            while (row.length < bottlesPerRow) {
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                if (!uniqueColors.has(color)) {
+                    row.push(color);
+                    uniqueColors.add(color);
                 }
             }
+            targetOrder.push(row);
         }
+    }
 
-        function createBottles() {
-            const bottleContainer = document.getElementById('bottleContainer');
-            bottleContainer.innerHTML = '';
-            const uniqueColors = [...new Set(targetSequence.flat())]; // Get unique colors in the target sequence
-            uniqueColors.forEach(color => {
-                const bottle = document.createElement('div');
-                bottle.className = 'bottle';
-                bottle.style.backgroundColor = color;
-                bottle.dataset.color = color;
-                bottle.draggable = true;
+    function createSelectArea() {
+        const selectArea = document.getElementById('selectArea');
+        colors.forEach(color => {
+            const bottle = document.createElement('div');
+            bottle.className = 'selectBottle';
+            bottle.style.backgroundColor = color;
+            bottle.draggable = true;
+            bottle.ondragstart = (e) => {
+                e.dataTransfer.setData('text', color);
+            };
+            selectArea.appendChild(bottle);
+        });
+    }
 
-                bottle.ondragstart = (e) => {
-                    e.dataTransfer.setData('text/plain', color);
-                    setTimeout(() => { bottle.classList.add('selected'); }, 0);
-                };
-                bottle.ondragend = () => {
-                    bottle.classList.remove('selected');
-                };
-
-                bottleContainer.appendChild(bottle);
-            });
-        }
-
-        function setupGridInteraction() {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach(cell => {
-                cell.ondragover = (e) => {
-                    e.preventDefault();
-                };
-                cell.ondrop = (e) => {
-                    e.preventDefault();
-                    const color = e.dataTransfer.getData('text/plain');
-                    const row = cell.dataset.row;
-                    const col = cell.dataset.col;
-
-                    // Replace bottle in the cell
-                    cell.style.backgroundColor = color;
-                    checkRowFeedback(row);
-                };
-            });
-        }
-
-        function checkRowFeedback(row) {
-            const rowCells = [...document.querySelectorAll(`.cell[data-row="${row}"]`)];
-            let feedbackMessage = '';
-            const targetRow = targetSequence[row];
-            const placedColors = rowCells.map(cell => cell.style.backgroundColor);
-
-            for (let i = 0; i < cols; i++) {
-                if (placedColors[i] === targetRow[i]) {
-                    feedbackMessage += `第${parseInt(row) + 1}行第${i + 1}格正确！`;
-                } else if (targetRow.includes(placedColors[i])) {
-                    feedbackMessage += `第${parseInt(row) + 1}行第${i + 1}格颜色存在，但位置不正确！`;
-                } else {
-                    feedbackMessage += `第${parseInt(row) + 1}行第${i + 1}格颜色不存在！`;
-                }
+    function createGrid() {
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        for (let i = 0; i < totalRows; i++) {
+            for (let j = 0; j < bottlesPerRow; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.ondragover = (e) => e.preventDefault();
+                cell.ondrop = (e) => handleDrop(e, i, j);
+                grid.appendChild(cell);
             }
-
-            document.getElementById('feedback').innerText = feedbackMessage;
         }
+    }
 
-        function initializeGame() {
-            generateTargetSequence();
-            setupGrid();
-            createBottles();
-            setupGridInteraction();
+    function handleDrop(e, row, col) {
+        const color = e.dataTransfer.getData('text');
+        const cell = e.target;
+        cell.style.backgroundColor = color;
 
-            document.getElementById('targetSequence').innerText = `目标顺序: ${JSON.stringify(targetSequence)}`;
+        if (checkRow(row)) {
+            completedRows++;
+            document.getElementById('reward').innerText = `成功匹配第${row + 1}行！`;
+            lockRow(row);
+            if (completedRows === totalRows) {
+                alert('所有行已匹配成功！');
+            }
+        } else {
+            document.getElementById('feedback').innerText = `第${row + 1}行有颜色不匹配！`;
         }
+    }
 
-        initializeGame();
-    </script>
+    function checkRow(row) {
+        const cells = document.querySelectorAll('.cell');
+        let matched = true;
+        for (let col = 0; col < bottlesPerRow; col++) {
+            if (cells[row * bottlesPerRow + col].style.backgroundColor !== targetOrder[row][col]) {
+                matched = false;
+                break;
+            }
+        }
+        return matched;
+    }
+
+    function lockRow(row) {
+        const cells = document.querySelectorAll('.cell');
+        for (let col = 0; col < bottlesPerRow; col++) {
+            cells[row * bottlesPerRow + col].ondragover = null;
+            cells[row * bottlesPerRow + col].ondrop = null;
+            cells[row * bottlesPerRow + col].style.pointerEvents = 'none'; // 禁用交互
+        }
+    }
+
+    generateTargetOrder();
+    createSelectArea();
+    createGrid();
+
+    // 调试用：在页面下方显示正确的目标排序
+    const targetOrderDiv = document.getElementById('targetOrder');
+    targetOrderDiv.style.display = 'block';
+    targetOrderDiv.innerHTML = `<strong>正确目标排序:</strong> ${JSON.stringify(targetOrder)}`;
+</script>
 
 </body>
 </html>
