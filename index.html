@@ -35,7 +35,6 @@
         .bottle {
             width: 60%;
             height: 70%;
-            background-color: transparent;
             border-radius: 10px;
             cursor: pointer;
             transition: transform 0.1s;
@@ -78,11 +77,10 @@
 <div id="targetOrder" style="display:none;"></div>
 
 <script>
-    const colors = ['red', 'yellow', 'blue', 'green', 'purple', 'orange', 'pink', 'cyan'];
+    const colors = ['red', 'yellow', 'blue', 'green', 'purple', 'orange'];
     const totalRows = 4;
     const bottlesPerRow = 4;
     let targetOrder = [];
-    let selectedBottles = [];
     let completedRows = 0;
 
     function generateTargetOrder() {
@@ -123,13 +121,13 @@
                 const cell = document.createElement('div');
                 cell.className = 'cell';
                 cell.ondragover = (e) => e.preventDefault();
-                cell.ondrop = (e) => handleDrop(e, i, j);
+                cell.ondrop = (e) => handleDrop(e, i);
                 grid.appendChild(cell);
             }
         }
     }
 
-    function handleDrop(e, row, col) {
+    function handleDrop(e, row) {
         const color = e.dataTransfer.getData('text');
         const cell = e.target;
         cell.style.backgroundColor = color;
