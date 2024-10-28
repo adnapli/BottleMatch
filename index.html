@@ -62,6 +62,11 @@
             position: relative;
             overflow: hidden;
             user-select: none;
+            touch-action: none; /* 禁用浏览器默认的触摸行为 */
+        }
+
+        .test-tube.dragging {
+            opacity: 0.5;
         }
 
         .test-tube .liquid {
@@ -162,6 +167,7 @@
         let currentLevel = 0;
         let targetSequence = [];
         let playerSequence = [];
+        let draggedElement = null;
         let draggedColor = null;
 
         const sortingArea = document.getElementById('sorting-area');
@@ -195,10 +201,8 @@
             playerSequence.forEach((color, index) => {
                 const dropZone = document.createElement('div');
                 dropZone.classList.add('drop-zone');
-                dropZone.addEventListener('dragover', handleDragOver);
-                dropZone.addEventListener('drop', (e) => handleDrop(e, index));
 
-                // 触摸事件：让手机可以放置瓶子
+                // 支持触摸拖动放置
                 dropZone.addEventListener('touchend', (e) => handleTouchEnd(e, index));
 
                 if (color) {
@@ -216,11 +220,9 @@
 
             uniqueColors.forEach(color => {
                 const tube = createTubeElement(color);
-                tube.setAttribute('draggable', true);
-                tube.addEventListener('dragstart', (e) => handleDragStart(e, color));
-
-                // 添加触摸事件：支持iOS上的拖动
-                tube.addEventListener('touchstart', (e) => handleTouchStart(e, color), { passive: false });
+                tube.addEventListener('touchstart', (e) => handleTouchStart(e, tube, color), { passive: false });
+                tube.addEventListener('touchmove', (e) => handleTouchMove(e), { passive: false });
+                tube.addEventListener('touchend', (e) => handleTouchEnd(e), { passive: false });
                 availableTubesContainer.appendChild(tube);
             });
         }
@@ -236,38 +238,39 @@
             return tube;
         }
 
-        function handleDragStart(e, color) {
+        function handleTouchStart(e, element, color) {
+            e.preventDefault();
+            draggedElement = element;
             draggedColor = color;
-            e.dataTransfer.setData('color', color);
+            draggedElement.classList.add('dragging');
         }
 
-        function handleDragOver(e) {
+        function handleTouchMove(e) {
             e.preventDefault();
-            e.currentTarget.classList.add('over');
+            if (!draggedElement) return;
+
+            const touch = e.touches[0];
+            draggedElement.style.position = 'absolute';
+            draggedElement.style.left = `${touch.clientX - draggedElement.offsetWidth / 2}px`;
+            draggedElement.style.top = `${touch.clientY - draggedElement.offsetHeight / 2}px`;
         }
 
-        function handleDrop(e, index) {
-            e.preventDefault();
-            const color = e.dataTransfer.getData('color') || draggedColor;
-            if (color) {
-                playerSequence[index] = color;
-                renderSortingArea();
-                provideFeedback(color, index);
-            }
-        }
+        function handleTouchEnd(e, index = null) {
+            if (!draggedElement) return;
 
-        function handleTouchStart(e, color) {
-            e.preventDefault();
-            draggedColor = color;
-        }
+            draggedElement.style.position = '';
+            draggedElement.style.left = '';
+            draggedElement.style.top = '';
+            draggedElement.classList.remove('dragging');
 
-        function handleTouchEnd(e, index) {
-            if (draggedColor) {
+            if (index !== null && draggedColor) {
                 playerSequence[index] = draggedColor;
                 renderSortingArea();
                 provideFeedback(draggedColor, index);
-                draggedColor = null;
             }
+
+            draggedElement = null;
+            draggedColor = null;
         }
 
         function provideFeedback(color, index) {
