@@ -1,83 +1,176 @@
-    function handleTouchStart(e, element, color) {
-        e.preventDefault();
-        draggedElement = element.cloneNode(true);
-        draggedElement.classList.add('dragging');
-        document.body.appendChild(draggedElement);
-        draggedColor = color;
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>猜瓶子</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(6, 1fr);
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 20px;
+        }
+        .cell {
+            border: 2px dashed #ccc;
+            width: 100%;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .bottle {
+            width: 40px;
+            height: 70px;
+            margin: 5px;
+            background-color: transparent;
+            border: 2px solid #000;
+            border-radius: 10px;
+            position: absolute;
+            cursor: pointer;
+            user-select: none;
+        }
+        .selected {
+            opacity: 0.5;
+        }
+        .feedback {
+            margin: 20px;
+            font-size: 16px;
+            color: #333;
+        }
+        .bottle-container {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
 
-        // 增加放置区域的标记
-        document.querySelectorAll('.drop-zone').forEach(zone => {
-            zone.classList.add('over');
-        });
-    }
+    <div class="feedback" id="feedback">选择瓶子并拖动到上方的格子中！</div>
+    <div id="grid"></div>
+    <div class="bottle-container" id="bottleContainer"></div>
+    <div class="targetSequence" id="targetSequence"></div>
 
-    function handleTouchMove(e) {
-        e.preventDefault();
-        if (!draggedElement) return;
+    <script>
+        const rows = 6;
+        const cols = 4;
+        const bottleColors = ['红', '黄', '蓝', '绿', '紫', '橙'];
+        const targetSequence = [];
+        let currentBottles = [];
 
-        const touch = e.touches[0];
-        draggedElement.style.left = `${touch.clientX - draggedElement.offsetWidth / 2}px`;
-        draggedElement.style.top = `${touch.clientY - draggedElement.offsetHeight / 2}px`;
-    }
+        function generateTargetSequence() {
+            for (let r = 0; r < rows; r++) {
+                const rowColors = [];
+                for (let c = 0; c < cols; c++) {
+                    const color = bottleColors[Math.floor(Math.random() * bottleColors.length)];
+                    rowColors.push(color);
+                }
+                targetSequence.push(rowColors);
+            }
+        }
 
-    function handleTouchEnd(e, index = null) {
-        if (draggedElement) {
-            const touch = e.changedTouches[0];
-            const dropZones = document.elementsFromPoint(touch.clientX, touch.clientY);
-            const targetZone = dropZones.find(zone => zone.classList.contains('drop-zone'));
+        function setupGrid() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    grid.appendChild(cell);
+                }
+            }
+        }
 
-            // 移除放置区域的标记
-            document.querySelectorAll('.drop-zone').forEach(zone => {
-                zone.classList.remove('over');
+        function createBottles() {
+            const bottleContainer = document.getElementById('bottleContainer');
+            bottleContainer.innerHTML = '';
+            const uniqueColors = [...new Set(targetSequence.flat())]; // Get unique colors in the target sequence
+            uniqueColors.forEach(color => {
+                const bottle = document.createElement('div');
+                bottle.className = 'bottle';
+                bottle.style.backgroundColor = color;
+                bottle.dataset.color = color;
+                bottle.draggable = true;
+
+                bottle.ondragstart = (e) => {
+                    e.dataTransfer.setData('text/plain', color);
+                    setTimeout(() => { bottle.classList.add('selected'); }, 0);
+                };
+                bottle.ondragend = () => {
+                    bottle.classList.remove('selected');
+                };
+
+                bottleContainer.appendChild(bottle);
             });
+        }
 
-            if (targetZone) {
-                const zoneIndex = Array.from(sortingArea.children).indexOf(targetZone);
-                playerSequence[zoneIndex] = draggedColor;
-                renderSortingArea();
-                provideFeedback(draggedColor, zoneIndex);
+        function setupGridInteraction() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                cell.ondragover = (e) => {
+                    e.preventDefault();
+                };
+                cell.ondrop = (e) => {
+                    e.preventDefault();
+                    const color = e.dataTransfer.getData('text/plain');
+                    const row = cell.dataset.row;
+                    const col = cell.dataset.col;
+
+                    // Replace bottle in the cell
+                    cell.style.backgroundColor = color;
+                    checkRowFeedback(row);
+                };
+            });
+        }
+
+        function checkRowFeedback(row) {
+            const rowCells = [...document.querySelectorAll(`.cell[data-row="${row}"]`)];
+            let feedbackMessage = '';
+            const targetRow = targetSequence[row];
+            const placedColors = rowCells.map(cell => cell.style.backgroundColor);
+
+            for (let i = 0; i < cols; i++) {
+                if (placedColors[i] === targetRow[i]) {
+                    feedbackMessage += `第${parseInt(row) + 1}行第${i + 1}格正确！`;
+                } else if (targetRow.includes(placedColors[i])) {
+                    feedbackMessage += `第${parseInt(row) + 1}行第${i + 1}格颜色存在，但位置不正确！`;
+                } else {
+                    feedbackMessage += `第${parseInt(row) + 1}行第${i + 1}格颜色不存在！`;
+                }
             }
 
-            draggedElement.remove();
-            draggedElement = null;
+            document.getElementById('feedback').innerText = feedbackMessage;
         }
-    }
 
-    function provideFeedback(color, index) {
-        const row = Math.floor(index / 6);
-        const rowStart = row * 6;
-        const rowEnd = rowStart + 6;
-        const currentRow = targetSequence.slice(rowStart, rowEnd);
+        function initializeGame() {
+            generateTargetSequence();
+            setupGrid();
+            createBottles();
+            setupGridInteraction();
 
-        if (color === targetSequence[index]) {
-            feedbackMessage.textContent = '位置正确！';
-            feedbackMessage.style.color = 'green';
-        } else if (currentRow.includes(color)) {
-            feedbackMessage.textContent = '颜色存在，但位置不正确。';
-            feedbackMessage.style.color = 'orange';
-        } else {
-            feedbackMessage.textContent = '颜色不存在！';
-            feedbackMessage.style.color = 'red';
+            document.getElementById('targetSequence').innerText = `目标顺序: ${JSON.stringify(targetSequence)}`;
         }
-    }
 
-    function retryLevel() {
-        playerSequence = Array(playerSequence.length).fill(null);
-        renderSortingArea();
-        feedbackMessage.textContent = '';
-    }
+        initializeGame();
+    </script>
 
-    function nextLevel() {
-        if (currentLevel < levels.length - 1) {
-            currentLevel++;
-            initLevel(currentLevel);
-        } else {
-            feedbackMessage.textContent = '你已完成所有关卡！';
-        }
-    }
-
-    retryButton.addEventListener('click', retryLevel);
-    nextLevelButton.addEventListener('click', nextLevel);
-
-    initLevel(currentLevel);
-</script>
+</body>
+</html>
