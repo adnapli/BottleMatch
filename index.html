@@ -97,7 +97,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
             position: relative;
         }
 
@@ -200,7 +199,6 @@
             playerSequence.forEach((color, index) => {
                 const dropZone = document.createElement('div');
                 dropZone.classList.add('drop-zone');
-                dropZone.addEventListener('click', () => placeBottle(index));
                 dropZone.addEventListener('dragover', handleDragOver);
                 dropZone.addEventListener('drop', (e) => handleDrop(e, index));
 
@@ -220,8 +218,9 @@
             uniqueColors.forEach(color => {
                 const tube = createTubeElement(color);
                 tube.setAttribute('draggable', true);
-                tube.addEventListener('click', () => selectBottle(color));
                 tube.addEventListener('dragstart', handleDragStart);
+                tube.addEventListener('touchstart', handleTouchStart, { passive: false });
+                tube.addEventListener('touchend', handleTouchEnd, { passive: false });
                 availableTubesContainer.appendChild(tube);
             });
         }
@@ -237,22 +236,6 @@
             return tube;
         }
 
-        function selectBottle(color) {
-            selectedColor = color;
-            const tubes = document.querySelectorAll('.test-tube');
-            tubes.forEach(tube => tube.classList.remove('selected'));
-            const selectedTube = document.querySelector(`.test-tube.${color}`);
-            if (selectedTube) selectedTube.classList.add('selected');
-        }
-
-        function placeBottle(index) {
-            if (selectedColor) {
-                playerSequence[index] = selectedColor;
-                renderSortingArea();
-                provideFeedback(selectedColor, index);
-            }
-        }
-
         function handleDragStart(e) {
             e.dataTransfer.setData('color', e.target.classList[1]);
         }
@@ -266,6 +249,25 @@
             e.preventDefault();
             const color = e.dataTransfer.getData('color');
             if (color) {
+                playerSequence[index] = color;
+                renderSortingArea();
+                provideFeedback(color, index);
+            }
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const color = e.target.classList[1];
+            e.target.setAttribute('data-dragging', color);
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            const color = e.target.getAttribute('data-dragging');
+            const dropZones = document.elementsFromPoint(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+            const dropZone = dropZones.find(zone => zone.classList.contains('drop-zone'));
+            if (dropZone && color) {
+                const index = Array.from(sortingArea.children).indexOf(dropZone);
                 playerSequence[index] = color;
                 renderSortingArea();
                 provideFeedback(color, index);
